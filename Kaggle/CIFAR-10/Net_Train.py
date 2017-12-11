@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 from mxnet import gluon
@@ -16,7 +16,7 @@ Path_Label = '../../../Data/'
 File_Name = 'Train_CIFAR10.csv'
 
 
-# In[2]:
+# In[ ]:
 
 
 # LoadImageData = ReadData(File_Name, Path_Label)
@@ -26,7 +26,7 @@ File_Name = 'Train_CIFAR10.csv'
 # ### 此处根据batch_size进行数据的分组（包括测试与batch）
 #  此处根据实际需要（AlexNet的最小输入）需要对Image进行resize
 
-# In[3]:
+# In[ ]:
 
 
 def loadTrainTestData(Data, batch_size, Train_ratio = 0.8, resize = None):
@@ -64,15 +64,15 @@ def loadTrainTestData(Data, batch_size, Train_ratio = 0.8, resize = None):
     return np.array(Train_Data), np.array(Test_Data)
 
 
-# In[4]:
+# In[ ]:
 
 
 # Data = np.ones((100, 3073))
 # print(Data.shape)
-# Train_Data, Test_Data = loadTrainTestData(LoadImageData, 256, resize=32)
+# Train_Data, Test_Data = loadTrainTestData(LoadImageData, 256, resize=224)
 
 
-# In[5]:
+# In[ ]:
 
 
 #plt.imshow(Image[2])
@@ -82,7 +82,7 @@ def loadTrainTestData(Data, batch_size, Train_ratio = 0.8, resize = None):
 # print(Test_Data.shape)
 
 
-# In[6]:
+# In[ ]:
 
 
 def GetImageAndLabel(Data, size = 32):
@@ -92,7 +92,7 @@ def GetImageAndLabel(Data, size = 32):
     return Image/255, Label
 
 
-# In[7]:
+# In[ ]:
 
 
 # Image, Label = GetImageAndLabel(Train_Data[0])
@@ -100,7 +100,7 @@ def GetImageAndLabel(Data, size = 32):
 # print(Label.shape)
 
 
-# In[8]:
+# In[ ]:
 
 
 def Image_show(Image, Label):
@@ -109,7 +109,7 @@ def Image_show(Image, Label):
     plt.show()
 
 
-# In[9]:
+# In[ ]:
 
 
 # print(Image[0].shape)
@@ -121,7 +121,7 @@ def Image_show(Image, Label):
 
 # ### 定义一个基础的神经网络
 
-# In[10]:
+# In[ ]:
 
 
 from mxnet import gluon
@@ -130,25 +130,25 @@ from mxnet import nd
 from mxnet.gluon.model_zoo import vision
 from mxnet import autograd as ag
 from time import clock
-
-
-# AlexNet对输入的图形的像素尺寸有要求，不能用原先的32*32
-# AlexNet最后的全连接层需要根据实际需要，进行类别选择
+import mxnet
+# ctx = mxnet.gpu()
+# # AlexNet对输入的图形的像素尺寸有要求，不能用原先的32*32
+# # AlexNet最后的全连接层需要根据实际需要，进行类别选择
 # AlexNet = vision.alexnet(classes=10)
 # #print(AlexNet)
-# AlexNet.initialize(init=init.Xavier())
+# AlexNet.initialize(init=init.Xavier(),ctx=ctx)
 
-# loss = gluon.loss.SoftmaxCrossEntropyLoss()
-# Trainer = gluon.Trainer(ConvNet.collect_params(), 'sgd', {'learning_rate': 0.05})
+# # loss = gluon.loss.SoftmaxCrossEntropyLoss()
+# # Trainer = gluon.Trainer(ConvNet.collect_params(), 'sgd', {'learning_rate': 0.05})
 
-# x = nd.random_normal(shape=(10, 3, 224, 224))
-# print(x.shape)
-# y = AlexNet(x)
-# print(y.shape)
+# # x = nd.random_normal(shape=(10, 3, 224, 224))
+# # print(x.shape)
+# # y = AlexNet(x)
+# # print(y.shape)
 
-from mxnet import gluon
-from mxnet import init
-from mxnet.gluon import nn
+# from mxnet import gluon
+# from mxnet import init
+# from mxnet.gluon import nn
 # ConvNet = nn.Sequential()
 # with ConvNet.name_scope():
 #     ConvNet.add(
@@ -160,34 +160,39 @@ from mxnet.gluon import nn
 #         nn.Dense(128, activation="relu"),
 #         nn.Dense(10)
 #     )
-# ConvNet.initialize(init=init.Xavier())
+
+# ConvNet.initialize(init=init.Xavier(), ctx=ctx)
+
+
 
 # loss = gluon.loss.SoftmaxCrossEntropyLoss()
-# Trainer = gluon.Trainer(ConvNet.collect_params(), 'sgd', {'learning_rate': 0.05})
+# Trainer = gluon.Trainer(AlexNet.collect_params(), 'sgd', {'learning_rate': 0.05})
 
 
-# In[11]:
+# In[ ]:
 
 
 def accuracy(out, label):
     return nd.mean(out.argmax(axis=1) == label).asscalar()
 
 
-# In[12]:
+# In[ ]:
 
 
-def evaluate_accuracy(Data, net):
-    test_image, test_label = GetImageAndLabel(Data, size=32)
+def evaluate_accuracy(Data, net, ctx, Size):
+    test_image, test_label = GetImageAndLabel(Data, size= Size)
+    test_image = nd.array(test_image, ctx=ctx)
+    test_label = nd.array(test_label, ctx=ctx)
     out = net(test_image)
     # print(out.argmax(axis=1), " ", test_label)
     acc = accuracy(out, test_label)
     return acc
 
 
-# In[13]:
+# In[ ]:
 
 
-def train(train_data, test_data, net, echoes, loss_func, trainer, size):
+def train(train_data, test_data, net, echoes, loss_func, trainer, size, ctx):
     test_acc = 0
     for echoe in range(echoes):
         train_loss = 0
@@ -199,6 +204,8 @@ def train(train_data, test_data, net, echoes, loss_func, trainer, size):
             train_image, train_label = GetImageAndLabel(train_batch, size=size)
             #print(train_image.shape)
             #print(train_label.shape)
+            train_image = nd.array(train_image, ctx=ctx)
+            train_label = nd.array(train_label, ctx=ctx)
             with ag.record():
                 #print(train_image[0])
                 out = net(train_image)
@@ -223,19 +230,19 @@ def train(train_data, test_data, net, echoes, loss_func, trainer, size):
         # 此处需要输出最后的loss及其精度
         end_time = clock()
         use_time = (end_time - start_time) #/1000000
-        test_acc = evaluate_accuracy(test_data, net)
+        test_acc = evaluate_accuracy(test_data, net, ctx, size)
         print("Echoe is %d, Train Loss is %f, Train Acc is %f, Test Acc is %f, Use-time is %f S" % (echoe+1, train_loss/len(train_data), train_acc/len(train_data), test_acc, use_time))
         
         
 
 
-# In[14]:
+# In[ ]:
 
 
-# train(nd.array(Train_Data), nd.array(Test_Data), ConvNet, 50, loss, Trainer, 32)
+# train(Train_Data, Test_Data, AlexNet, 50, loss, Trainer, 224, ctx=ctx)
 
 
-# In[15]:
+# In[ ]:
 
 
 # temp_out = nd.array([[-0.29596519,0.78109169,0.3583461,0.3933138,0.10683483,-0.18825993,-0.17625771,-0.33768478,-0.68717098,0.20490324],
@@ -247,7 +254,7 @@ def train(train_data, test_data, net, echoes, loss_func, trainer, size):
 
 # ## 调试网络
 
-# In[16]:
+# In[ ]:
 
 
 # def softmax(X):
@@ -260,7 +267,7 @@ def train(train_data, test_data, net, echoes, loss_func, trainer, size):
 #     return - nd.pick(nd.log(yhat), y)
 
 
-# In[17]:
+# In[ ]:
 
 
 # import sys
@@ -273,7 +280,7 @@ def train(train_data, test_data, net, echoes, loss_func, trainer, size):
 # train_data, test_data = utils.load_data_fashion_mnist(batch_size)
 
 
-# In[18]:
+# In[ ]:
 
 
 # from mxnet import gluon
@@ -293,14 +300,14 @@ def train(train_data, test_data, net, echoes, loss_func, trainer, size):
 # ConvNet.initialize(init=init.Xavier())
 
 
-# In[19]:
+# In[ ]:
 
 
 # softmax_cross_entropy = gluon.loss.SoftmaxCrossEntropyLoss()
 # trainer = gluon.Trainer(net.collect_params(), 'sgd', {'learning_rate': 0.005})
 
 
-# In[20]:
+# In[ ]:
 
 
 # from mxnet import ndarray as nd

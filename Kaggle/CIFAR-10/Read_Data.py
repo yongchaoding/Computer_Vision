@@ -189,6 +189,7 @@ def ImageDataLoad(path):
     Image_Data = []
     for root, dirs, files in os.walk(path):
         for each in files:
+            #print(each)
             img = mpimg.imread(path+each).transpose((2,1,0))
             # 将数据变成一维数组的形式
             img = img.flatten()
@@ -207,15 +208,15 @@ def ImageDataLoad(path):
 # In[5]:
 
 
-def MixImageAndLabel(path_Image, path_Label):
+def MixImageAndLabel(path_Image, path_Label, file_Label):
     Image = ImageDataLoad(path_Image)
-    Label = pd.read_csv(path_Label+'trainLabels.csv')
+    Label = pd.read_csv(path_Label+file_Label)
     ImageLabel = np.array(Label['label']).reshape(-1, 1)
-    print(ImageLabel)
+    #print(ImageLabel)
     # Label Encoder
     encoder = preprocessing.LabelEncoder()
     ImageLabel = encoder.fit_transform(ImageLabel)
-    Label_inverse = np.array(list(encoder.classes_))
+    #Label_inverse = np.array(list(encoder.classes_))
     # one_hot = preprocessing.OneHotEncoder(sparse=False)
     # One_hot_Label = one_hot.fit_transform(interger_label)
     ImageData = Image[:,1:]
@@ -223,7 +224,7 @@ def MixImageAndLabel(path_Image, path_Label):
     # print(ImageLabel.shape)
     Data = np.concatenate((ImageLabel.reshape(1, -1).T, ImageData), axis = 1)
     # print(Data.shape)
-    return Data,Label_inverse
+    return Data#,Label_inverse
 
 # MixImageAndLabel(Path_Image, Path_Label)
 
