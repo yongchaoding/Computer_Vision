@@ -29,7 +29,7 @@ File_Name = 'Train_CIFAR10.csv'
 # In[ ]:
 
 
-def loadTrainTestData(Data, batch_size, Train_ratio = 0.8, resize = None):
+def loadTrainTestData(Data, batch_size, Train_ratio = 0.8,origin_size=32, resize = None):
     # 测试数据与训练数据的数量
     Num_Train = int(len(Data) * Train_ratio)
     Num_Test = len(Data) - Num_Train
@@ -46,7 +46,7 @@ def loadTrainTestData(Data, batch_size, Train_ratio = 0.8, resize = None):
             # print(Data[i,1:].shape)
             # print(Data[i,1:].reshape(3, 32, 32).transpose(2,1,0).shape)
             # print(misc.imresize(Data[i,1:].reshape(3, 32, 32), (resize,resize)))
-            Image.append(misc.imresize(Data[i,1:].reshape(3, 32, 32), (resize,resize)).flatten())
+            Image.append(misc.imresize(Data[i,1:].reshape(3, origin_size, origin_size), (resize,resize)).flatten())
             # Image.append(np.hstack((Data[i,:1], misc.imresize(Data[i,1:].reshape(3, 32, 32), (resize,resize)).flatten())))
         Image = np.array(Image)
         Image_Data = np.concatenate((Data[:,:1], Image), axis = 1).astype(np.uint8)
@@ -186,27 +186,32 @@ def evaluate_accuracy(Data, net, ctx, Size):
     out = net(test_image)
     # print(out.argmax(axis=1), " ", test_label)
     acc = accuracy(out, test_label)
+    #test_image.asnumpy()
+    #test_label.asnumpy()
     return acc
 
 
 # In[ ]:
 
 
-def train(train_data, test_data, net, echoes, loss_func, trainer, size, ctx):
+def train(train_data, test_data, net, echoes, loss_func, trainer, size, ctx, Test_Flag =False, lr = None):
     test_acc = 0
     for echoe in range(echoes):
         train_loss = 0
         train_acc = 0
         start_time = clock()
+        if lr:
+                lr *= 0.98
+                trainer.set_learning_rate(lr * 0.98)
         for train_batch in train_data:
             #print(train_batch.shape)
             batch_size = len(train_batch)
             train_image, train_label = GetImageAndLabel(train_batch, size=size)
             #print(train_image.shape)
             #print(train_label.shape)
-            train_image = nd.array(train_image, ctx=ctx)
-            train_label = nd.array(train_label, ctx=ctx)
             with ag.record():
+                train_image = nd.array(train_image, ctx=ctx)
+                train_label = nd.array(train_label, ctx=ctx)
                 #print(train_image[0])
                 out = net(train_image)
                 #print(out.shape)
@@ -216,8 +221,8 @@ def train(train_data, test_data, net, echoes, loss_func, trainer, size, ctx):
                 #print(loss)
             # 此处需要backward()！！！！
             loss.backward()
-            # trainer.set_learning_rate(0.1)
             trainer.step(batch_size)
+            mxnet.nd.waitall()
             train_loss += np.mean(loss.asnumpy())
             # 局部正确率的计算
             #print(train_label.shape)
@@ -227,11 +232,14 @@ def train(train_data, test_data, net, echoes, loss_func, trainer, size, ctx):
             #print(accuracy(out, train_label)/batch_size)
             train_acc += accuracy(out, train_label)
             # print(train_acc)
+            train_image.asnumpy()
+            train_label.asnumpy()
         # 此处需要输出最后的loss及其精度
         end_time = clock()
         use_time = (end_time - start_time) #/1000000
-        test_acc = evaluate_accuracy(test_data, net, ctx, size)
-        print("Echoe is %d, Train Loss is %f, Train Acc is %f, Test Acc is %f, Use-time is %f S" % (echoe+1, train_loss/len(train_data), train_acc/len(train_data), test_acc, use_time))
+        if Test_Flag:
+            test_acc = evaluate_accuracy(test_data, net, ctx, size)
+        print("Echoe is %d, Train Loss is %f, Train Acc is %f, Test Acc is %f, Use-time is %f S, lr is %f" % (echoe+1, train_loss/len(train_data), train_acc/len(train_data), test_acc, use_time, lr))
         
         
 
